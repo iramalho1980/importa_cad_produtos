@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor | Cadastro de produtos</title>
+    
+    <!-- Bibliotecas Externas -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(to right, #19547b, #ffd89b);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-hover: rgba(255, 255, 255, 0.12);
+            --text-color: #ffffff;
+            --accent-color: #4CAF50;
+            --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Ubuntu', sans-serif;
+            font-weight: 300;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-color);
+            min-height: 100vh;
+            transition: background 0.8s ease;
+            overflow-x: hidden;
+        }
+
+        .skin-selector { position: fixed; top: 25px; right: 25px; z-index: 1000; }
+        .gear-btn {
+            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 50%;
+            padding: 14px; cursor: pointer; color: white; backdrop-filter: blur(15px);
+            display: flex; align-items: center; justify-content: center; transition: var(--transition-smooth);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .gear-btn:hover { transform: rotate(90deg) scale(1.1); background: var(--glass-hover); border-color: rgba(255,255,255,0.4); }
+        
+        .skin-options {
+            position: absolute; top: 70px; right: 0; background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px; padding: 15px; display: none; flex-direction: column;
+            gap: 12px; width: 240px; backdrop-filter: blur(25px); border: 1px solid var(--glass-border);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6); animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .skin-option { height: 40px; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: var(--transition-smooth); }
+        .skin-option:hover { transform: scale(1.04); border-color: white; }
+
+        .container { max-width: 1300px; margin: 0 auto; padding: 50px 25px; }
+
+        .glass-panel {
+            background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 12px; padding: 25px;
+            margin-bottom: 25px; box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.25); transition: var(--transition-smooth);
+        }
+        .glass-panel:hover { 
+            background: var(--glass-hover); 
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 15px 50px 0 rgba(0, 0, 0, 0.35);
+            transform: translateY(-2px);
+        }
+
+        .panel-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .panel-content { max-height: 0; overflow: hidden; transition: max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .panel-content.expanded { max-height: 15000px; margin-top: 25px; }
+        .chevron-icon { transition: transform 0.4s; opacity: 0.6; }
+        .expanded-header .chevron-icon { transform: rotate(180deg); opacity: 1; }
+
+        h1, h2 { margin: 0; font-weight: 400; letter-spacing: 1px; }
+        h1 { font-size: 2.4rem; text-align: center; margin-bottom: 15px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+
+        .import-area { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 30px 0; }
+        input[type="file"] { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        .custom-file-upload {
+            background: rgba(255,255,255,0.12); padding: 16px 35px; border-radius: 12px;
+            cursor: pointer; border: 1px solid var(--glass-border); transition: var(--transition-smooth);
+            display: flex; align-items: center; gap: 12px; font-weight: 400; font-size: 1.1rem;
+        }
+        .custom-file-upload:hover { background: rgba(255,255,255,0.22); transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+
+        #spinner-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column;
+        }
+        .spinner-container {
+            background: rgba(255, 255, 255, 0.05); padding: 50px; border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15); display: flex; flex-direction: column;
+            align-items: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); min-width: 250px;
+        }
+        .spinner-wrapper { position: relative; width: 100px; height: 100px; display: flex; justify-content: center; align-items: center; }
+        .spinner {
+            width: 100%; height: 100%; border: 4px solid rgba(255,255,255,0.05);
+            border-top: 4px solid #fff; border-radius: 50%; animation: spin 0.8s linear infinite; position: absolute;
+        }
+        .spinner-percent { font-size: 1.4rem; font-weight: 400; color: white; z-index: 10; }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .list-container { max-height: 500px; overflow-y: auto; padding-right: 10px; }
+        .list-container::-webkit-scrollbar { width: 5px; }
+        .list-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        
+        .list-item {
+            background: rgba(255,255,255,0.06); margin-bottom: 12px; padding: 15px;
+            border-radius: 10px; display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid transparent; transition: var(--transition-smooth);
+        }
+        .list-item:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); transform: translateX(5px); }
+
+        select, input[type="text"] {
+            background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--glass-border);
+            padding: 10px 15px; border-radius: 8px; outline: none; font-family: 'Ubuntu', sans-serif;
+            transition: var(--transition-smooth);
+        }
+        select:focus, input[type="text"]:focus { border-color: white; background: rgba(0,0,0,0.5); }
+        select option { background: #1a1a1a; }
+
+        .virtual-table-container {
+            height: 550px; overflow-y: auto; position: relative;
+            border: 1px solid var(--glass-border); border-radius: 12px; background: rgba(0,0,0,0.15);
+        }
+        .virtual-table-spacer { position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; }
+        .virtual-table-content { position: absolute; top: 0; left: 0; width: 100%; }
+        
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        th { background: rgba(255,255,255,0.1); font-weight: 400; position: sticky; top: 0; z-index: 20; backdrop-filter: blur(10px); }
+        tr:hover { background: rgba(255,255,255,0.04); }
+        
+        .row-checkbox { width: 50px; text-align: center; }
+        .col-data { width: 160px; }
+        .col-actions { width: 90px; text-align: center; }
+
+        .btn {
+            padding: 12px 24px; border-radius: 10px; border: none; cursor: pointer;
+            transition: var(--transition-smooth); font-weight: 400; display: flex; align-items: center; gap: 10px; color: white;
+            font-family: 'Ubuntu', sans-serif;
+        }
+        .btn-primary { background: rgba(46, 125, 50, 0.7); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-primary:hover { background: rgba(46, 125, 50, 0.9); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .btn-danger { background: rgba(198, 40, 40, 0.6); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-danger:hover { background: rgba(198, 40, 40, 0.8); transform: translateY(-3px); }
+        .btn-info { background: rgba(21, 101, 192, 0.6); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-info:hover { background: rgba(21, 101, 192, 0.8); transform: translateY(-3px); }
+        .btn-github { background: rgba(36, 41, 47, 0.7); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-github:hover { background: rgba(36, 41, 47, 0.9); transform: translateY(-3px); }
+
+        .actions-bar {
+            display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;
+            align-items: center; background: rgba(0,0,0,0.15); padding: 20px; border-radius: 12px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .popup-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center;
+            z-index: 5000; backdrop-filter: blur(15px);
+        }
+        .popup-content {
+            background: rgba(30, 30, 30, 0.8); padding: 40px; border-radius: 12px; text-align: center;
+            min-width: 400px; border: 1px solid var(--glass-border); box-shadow: 0 30px 70px rgba(0,0,0,0.7);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="skin-selector">
+        <button class="gear-btn" onclick="toggleSkins()"><i data-lucide="settings"></i></button>
+        <div class="skin-options" id="skinOptions">
+            <div class="skin-option" style="background: linear-gradient(to right, #19547b, #ffd89b);" onclick="setSkin(0)"></div>
+            <div class="skin-option" style="background: linear-gradient(to right, #004e92, #000428);" onclick="setSkin(1)"></div>
+            <div class="skin-option" style="background: linear-gradient(to right, #237A57, #093028);" onclick="setSkin(2)"></div>
+            <div class="skin-option" style="background: linear-gradient(to right, #283E51, #4B79A1);" onclick="setSkin(3)"></div>
+            <div class="skin-option" style="background: linear-gradient(to right, #2C5364, #203A43, #0F2027);" onclick="setSkin(4)"></div>
+        </div>
+    </div>
+
+    <div id="spinner-overlay">
+        <div class="spinner-container">
+            <div class="spinner-wrapper">
+                <div class="spinner"></div>
+                <div class="spinner-percent" id="spinner-percent">0%</div>
+            </div>
+            <p id="spinner-text" style="margin-top: 20px; font-weight: 400; letter-spacing: 2px; opacity: 0.8;"></p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="glass-panel">
+            <h1>Conversor | Cadastro de produtos</h1>
+            <div class="import-area">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                    <label class="custom-file-upload">
+                        <input type="file" id="excelInput" accept=".xlsx, .xls, .xlsm, .xlsb, .ods, .csv" onchange="handleFile(event)">
+                        <i data-lucide="file-spreadsheet"></i> Importar Planilha (Excel ou CSV)
+                    </label>
+                    <button class="btn btn-github" onclick="downloadDataset()">
+                        <i data-lucide="download-cloud"></i> Download Conjunto de dados
+                    </button>
+                </div>
+                <p id="fileInfo" style="font-size: 1rem; opacity: 0.6;">Aguardando arquivo para conversão...</p>
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <div class="panel-header" onclick="togglePanel('panelLayout')">
+                <h2><i data-lucide="map" style="vertical-align: middle; margin-right: 12px;"></i>Layout Domínio</h2>
+                <i data-lucide="chevron-down" class="chevron-icon"></i>
+            </div>
+            <div id="panelLayout" class="panel-content">
+                <div id="layoutDominio" class="list-container"></div>
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <div class="panel-header" onclick="togglePanel('panelDados')">
+                <h2><i data-lucide="table-2" style="vertical-align: middle; margin-right: 12px;"></i>DADOS CONVERTIDOS</h2>
+                <i data-lucide="chevron-down" class="chevron-icon"></i>
+            </div>
+            <div id="panelDados" class="panel-content">
+                <div class="actions-bar">
+                    <select id="bulkColumn"><option value="">Selecionar Coluna...</option></select>
+                    <input type="text" id="bulkValue" placeholder="Valor a aplicar...">
+                    <select id="bulkScope">
+                        <option value="todas">Todas as Linhas</option>
+                        <option value="vazias">Apenas Vazias</option>
+                        <option value="selecionadas">Apenas Selecionadas</option>
+                    </select>
+                    <button class="btn btn-info" onclick="applyBulkChange()"><i data-lucide="check-circle-2"></i> Aplicar</button>
+                </div>
+                
+                <div class="virtual-table-container" id="tableContainer" onscroll="onTableScroll()">
+                    <div class="virtual-table-spacer" id="tableSpacer"></div>
+                    <div class="virtual-table-content" id="tableContent">
+                        <table id="mainTable">
+                            <thead id="tableHeader"></thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-panel" style="display: flex; justify-content: center; gap: 25px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="showExportPopup()"><i data-lucide="file-text"></i> SALVAR TXT</button>
+            <button class="btn btn-info" onclick="saveJSON()"><i data-lucide="code-2"></i> SALVAR JSON</button>
+            <label class="btn btn-info" style="margin: 0;">
+                <input type="file" id="jsonInput" accept=".json" onchange="importJSON(event)">
+                <i data-lucide="upload"></i> IMPORTAR JSON
+            </label>
+        </div>
+    </div>
+
+    <div class="popup-overlay" id="exportPopup">
+        <div class="popup-content">
+            <h3 style="font-weight: 400; margin-bottom: 20px;">Configurar Separador</h3>
+            <p style="opacity: 0.7;">Informe o caractere separador para o TXT:</p>
+            <input type="text" id="separatorInput" value="|" style="width: 80px; text-align: center; font-size: 1.8rem; margin: 25px; font-weight: 300;">
+            <div style="display: flex; justify-content: center; gap: 20px;">
+                <button class="btn btn-primary" onclick="exportTXT()">GERAR ARQUIVO</button>
+                <button class="btn btn-danger" onclick="closeExportPopup()">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ROW_HEIGHT = 50;
+        const VISIBLE_ROWS = 12;
+        const BUFFER_ROWS = 5;
+
+        var excelData = [];
+        var excelColumns = [];
+        var mapping = {};
+        var convertedData = [];
+        var selectedRows = new Set();
+        
+        const dominioFields = [
+            "cod.produto", "descrição", "NCM", "grupo", "Tipo de item", 
+            "Código do Gênero", "Unidade Inventariada", "CST PIS/COFINS Entrada", 
+            "Vínculo do crédito", "Base do crédito", "CST PIS/COFINS Saídas", 
+            "Natureza da Receita", "CST ICMS Entradas", "CST ICMS Saídas", 
+            "CST IPI Entradas", "CST IPI Saídas", "Conta Contábil", "Em seu Poder"
+        ];
+
+        const skins = [
+            "linear-gradient(to right, #19547b, #ffd89b)",
+            "linear-gradient(to right, #004e92, #000428)",
+            "linear-gradient(to right, #237A57, #093028)",
+            "linear-gradient(to right, #283E51, #4B79A1)",
+            "linear-gradient(to right, #2C5364, #203A43, #0F2027)"
+        ];
+
+        window.onload = () => { 
+            lucide.createIcons(); 
+            renderDominioFields(); 
+        };
+
+        function showSpinner(text, percent = 0) {
+            document.getElementById('spinner-text').innerText = text.toUpperCase();
+            document.getElementById('spinner-percent').innerText = Math.round(percent) + "%";
+            document.getElementById('spinner-overlay').style.display = 'flex';
+        }
+        function updateSpinner(percent) { document.getElementById('spinner-percent').innerText = Math.round(percent) + "%"; }
+        function hideSpinner() { document.getElementById('spinner-overlay').style.display = 'none'; }
+
+        function togglePanel(id) {
+            const content = document.getElementById(id);
+            if(!content) return;
+            content.classList.toggle('expanded');
+            content.previousElementSibling.classList.toggle('expanded-header');
+        }
+
+        function toggleSkins() {
+            const opt = document.getElementById('skinOptions');
+            opt.style.display = opt.style.display === 'flex' ? 'none' : 'flex';
+        }
+        function setSkin(i) { document.body.style.background = skins[i]; toggleSkins(); }
+
+        function downloadDataset() {
+            const url = "https://raw.githubusercontent.com/iramalho1980/importa_cad_produtos/67aaf68cb412b6f5098ccc36d7b3145f0f9fedf0/%24%24%24cadprodutos.xml";
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "$$$cadprodutos.xml";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            showSpinner("Lendo Arquivo...", 0);
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    const options = { defval: "" };
+                    excelData = XLSX.utils.sheet_to_json(sheet, options);
+                    
+                    if (excelData.length > 0) {
+                        excelColumns = Object.keys(excelData[0]);
+                        renderDominioFields();
+                        autoMapFields();
+                        initConvertedData();
+                        document.getElementById('fileInfo').innerText = `${excelData.length} registros importados de "${file.name}"`;
+                        
+                        setTimeout(() => {
+                            if(!document.getElementById('panelLayout').classList.contains('expanded')) togglePanel('panelLayout');
+                            hideSpinner();
+                        }, 400);
+                    } else {
+                        alert("O arquivo parece estar vazio.");
+                        hideSpinner();
+                    }
+                } catch (err) { 
+                    console.error(err);
+                    alert("Erro ao processar o arquivo. Verifique se o formato é válido."); 
+                    hideSpinner(); 
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function normalizeString(s) {
+            if (!s) return "";
+            return s.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        }
+
+        function autoMapFields() {
+            const xmlFieldsMap = {
+                "cod.produto": ["codi_ps", "codigo", "cod", "id"],
+                "descrição": ["nome_ps", "descricao", "desc", "produto"],
+                "NCM": ["ncm_ps", "ncm"],
+                "grupo": ["codi_gr", "grupo"],
+                "Tipo de item": ["tipo_item", "tipo"],
+                "Código do Gênero": ["codi_ge", "genero"],
+                "Unidade Inventariada": ["unid_ps", "unidade", "un"],
+                "CST PIS/COFINS Entrada": ["codi_cst_pis_entrada", "cst_pis_entrada"],
+                "Vínculo do crédito": ["vinculo_credito"],
+                "Base do crédito": ["base_credito"],
+                "CST PIS/COFINS Saídas": ["codi_cst_pis_saida", "cst_pis_saida"],
+                "Natureza da Receita": ["natureza_receita"],
+                "CST ICMS Entradas": ["codi_cst_icms_entrada", "cst_icms_entrada"],
+                "CST ICMS Saídas": ["codi_cst_icms_saida", "cst_icms_saida"],
+                "CST IPI Entradas": ["codi_cst_ipi_entrada", "cst_ipi_entrada"],
+                "CST IPI Saídas": ["codi_cst_ipi_saida", "cst_ipi_saida"],
+                "Conta Contábil": ["conta_contabil"],
+                "Em seu Poder": ["em_seu_poder"]
+            };
+
+            dominioFields.forEach(f => {
+                const normalizedF = normalizeString(f);
+                
+                // 1. Tenta match exato ou parcial com o nome do campo no Domínio
+                let match = excelColumns.find(c => {
+                    const normalizedC = normalizeString(c);
+                    return normalizedC === normalizedF || normalizedF.includes(normalizedC) || normalizedC.includes(normalizedF);
+                });
+
+                // 2. Se não encontrou, tenta match com os campos técnicos do XML
+                if (!match && xmlFieldsMap[f]) {
+                    match = excelColumns.find(c => {
+                        const normalizedC = normalizeString(c);
+                        return xmlFieldsMap[f].some(xmlF => normalizeString(xmlF) === normalizedC);
+                    });
+                }
+
+                if (match) {
+                    mapping[f] = match;
+                }
+            });
+            renderDominioFields();
+        }
+
+        function renderDominioFields() {
+            const html = dominioFields.map(f => `
+                <div class="list-item">
+                    <span style="font-weight:400">${f}</span>
+                    <select onchange="updateMapping('${f}', this.value)" data-field="${f}">
+                        <option value="">Mapear para...</option>
+                        ${excelColumns.map(c => `<option value="${c}" ${mapping[f] === c ? 'selected' : ''}>${c}</option>`).join('')}
+                    </select>
+                </div>
+            `).join('');
+            document.getElementById('layoutDominio').innerHTML = html;
+            document.getElementById('bulkColumn').innerHTML = '<option value="">Selecionar Coluna...</option>' + dominioFields.map(f => `<option value="${f}">${f}</option>`).join('');
+        }
+
+        function initConvertedData() {
+            convertedData = new Array(excelData.length);
+            for(let i=0; i<excelData.length; i++) {
+                let obj = {}; 
+                dominioFields.forEach(f => {
+                    const exField = mapping[f];
+                    obj[f] = exField ? excelData[i][exField] : "";
+                });
+                convertedData[i] = obj;
+            }
+            selectedRows.clear();
+            updateVirtualTable();
+        }
+
+        function updateMapping(domField, exField) {
+            mapping[domField] = exField;
+            showSpinner("Mapeando dados...", 0);
+            let i = 0;
+            function chunk() {
+                const end = Math.min(i + 1500, excelData.length);
+                for(; i < end; i++) {
+                    convertedData[i][domField] = exField ? excelData[i][exField] : "";
+                }
+                updateSpinner((i / excelData.length) * 100);
+                if(i < excelData.length) setTimeout(chunk, 1);
+                else {
+                    updateVirtualTable();
+                    hideSpinner();
+                    if(!document.getElementById('panelDados').classList.contains('expanded')) togglePanel('panelDados');
+                }
+            }
+            chunk();
+        }
+
+        function updateVirtualTable() {
+            const spacer = document.getElementById('tableSpacer');
+            spacer.style.height = (convertedData.length * ROW_HEIGHT) + 'px';
+            onTableScroll();
+        }
+
+        function onTableScroll() {
+            const container = document.getElementById('tableContainer');
+            const scrollTop = container.scrollTop;
+            const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+            const endIndex = Math.min(convertedData.length, startIndex + VISIBLE_ROWS + (BUFFER_ROWS * 2));
+            renderRows(startIndex, endIndex);
+        }
+
+        function renderRows(start, end) {
+            const content = document.getElementById('tableContent');
+            const header = document.getElementById('tableHeader');
+            const body = document.getElementById('tableBody');
+            
+            content.style.transform = `translateY(${start * ROW_HEIGHT}px)`;
+            
+            header.innerHTML = `<tr>
+                <th class="row-checkbox"><input type="checkbox" onchange="toggleAllRows(this)"></th>
+                ${dominioFields.map(f => `<th class="col-data">${f.toUpperCase()}</th>`).join('')}
+                <th class="col-actions">AÇÕES</th>
+            </tr>`;
+            
+            let rowsHtml = "";
+            for(let i=start; i<end; i++) {
+                const row = convertedData[i];
+                rowsHtml += `<tr data-index="${i}">
+                    <td class="row-checkbox"><input type="checkbox" ${selectedRows.has(i) ? 'checked' : ''} onchange="toggleRowSelection(${i})"></td>
+                    ${dominioFields.map(f => `<td class="col-data" onclick="editCell(${i}, '${f}')">${row[f] || ""}</td>`).join('')}
+                    <td class="col-actions"><button class="btn-danger" style="padding:5px" onclick="deleteRow(${i})"><i data-lucide="trash-2" style="width:16px"></i></button></td>
+                </tr>`;
+            }
+            body.innerHTML = rowsHtml;
+            lucide.createIcons();
+        }
+
+        function toggleRowSelection(i) { if(selectedRows.has(i)) selectedRows.delete(i); else selectedRows.add(i); }
+        function toggleAllRows(el) {
+            if(el.checked) for(let i=0; i<convertedData.length; i++) selectedRows.add(i);
+            else selectedRows.clear();
+            onTableScroll();
+        }
+
+        function editCell(i, field) {
+            const val = prompt(`Editar ${field}:`, convertedData[i][field]);
+            if(val !== null) {
+                convertedData[i][field] = val;
+                onTableScroll();
+            }
+        }
+
+        function deleteRow(i) {
+            if(confirm("Excluir esta linha?")) {
+                convertedData.splice(i, 1);
+                updateVirtualTable();
+            }
+        }
+
+        function applyBulkChange() {
+            const field = document.getElementById('bulkColumn').value;
+            const value = document.getElementById('bulkValue').value;
+            const scope = document.getElementById('bulkScope').value;
+            
+            if(!field) return alert("Selecione uma coluna.");
+            
+            showSpinner("Aplicando alteração...", 0);
+            let i = 0;
+            function chunk() {
+                const end = Math.min(i + 1500, convertedData.length);
+                for(; i < end; i++) {
+                    if(scope === "todas" || (scope === "vazias" && !convertedData[i][field]) || (scope === "selecionadas" && selectedRows.has(i))) {
+                        convertedData[i][field] = value;
+                    }
+                }
+                updateSpinner((i / convertedData.length) * 100);
+                if(i < convertedData.length) setTimeout(chunk, 1);
+                else { onTableScroll(); hideSpinner(); }
+            }
+            chunk();
+        }
+
+        function showExportPopup() { if(convertedData.length > 0) document.getElementById('exportPopup').style.display = 'flex'; }
+        function closeExportPopup() { document.getElementById('exportPopup').style.display = 'none'; }
+
+        function exportTXT() {
+            const sep = document.getElementById('separatorInput').value || "|";
+            closeExportPopup();
+            showSpinner("Gerando TXT...", 0);
+            
+            let i = 0; let lines = [];
+            function chunk() {
+                const end = Math.min(i + 800, convertedData.length);
+                for(; i < end; i++) {
+                    const row = convertedData[i];
+                    if(Object.values(row).some(v => v && v.toString().trim() !== "")) {
+                        lines.push(dominioFields.map(f => {
+                            let s = (row[f] || "").toString();
+                            return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x00-\x7F]/g, "").replace(new RegExp('\\' + sep, 'g'), ' ');
+                        }).join(sep));
+                    }
+                }
+                updateSpinner((i / convertedData.length) * 100);
+                if(i < convertedData.length) setTimeout(chunk, 1);
+                else {
+                    const blob = new Blob([lines.join("\r\n")], { type: 'text/plain;charset=ansi' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `dominio_export_${Date.now()}.txt`;
+                    a.click();
+                    hideSpinner();
+                }
+            }
+            chunk();
+        }
+
+        function saveJSON() {
+            showSpinner("Salvando JSON...", 100);
+            const state = {
+                mapping: mapping,
+                convertedData: convertedData,
+                excelColumns: excelColumns,
+                excelData: excelData
+            };
+            const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `mapeamento_dominio_${Date.now()}.json`;
+            a.click();
+            setTimeout(hideSpinner, 600);
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            showSpinner("Importando JSON...", 0);
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const state = JSON.parse(ev.target.result);
+                    mapping = state.mapping || {};
+                    convertedData = state.convertedData || [];
+                    excelColumns = state.excelColumns || [];
+                    excelData = state.excelData || [];
+                    
+                    renderDominioFields();
+                    updateVirtualTable();
+                    
+                    if (convertedData.length > 0) {
+                        document.getElementById('fileInfo').innerText = `${convertedData.length} registros recuperados do JSON`;
+                    }
+                    
+                    setTimeout(() => {
+                        hideSpinner();
+                        if(!document.getElementById('panelLayout').classList.contains('expanded')) togglePanel('panelLayout');
+                        if(!document.getElementById('panelDados').classList.contains('expanded')) togglePanel('panelDados');
+                    }, 500);
+                } catch(e) { alert("Erro ao importar JSON: " + e.message); hideSpinner(); }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
