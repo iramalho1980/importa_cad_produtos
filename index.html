@@ -262,7 +262,7 @@
         <div class="popup-content">
             <h3 style="font-weight: 400; margin-bottom: 20px;">Configurar Separador</h3>
             <p style="opacity: 0.7;">Informe o caractere separador para o TXT:</p>
-            <input type="text" id="separatorInput" value="|" style="width: 80px; text-align: center; font-size: 1.8rem; margin: 25px; font-weight: 300;">
+            <input type="text" id="separatorInput" value=";" style="width: 80px; text-align: center; font-size: 1.8rem; margin: 25px; font-weight: 300;">
             <div style="display: flex; justify-content: center; gap: 20px;">
                 <button class="btn btn-primary" onclick="exportTXT()">GERAR ARQUIVO</button>
                 <button class="btn btn-danger" onclick="closeExportPopup()">CANCELAR</button>
@@ -286,7 +286,7 @@
             "Código do Gênero", "Unidade Inventariada", "CST PIS/COFINS Entrada", 
             "Vínculo do crédito", "Base do crédito", "CST PIS/COFINS Saídas", 
             "Natureza da Receita", "CST ICMS Entradas", "CST ICMS Saídas", 
-            "CST IPI Entradas", "CST IPI Saídas", "Conta Contábil", "Em seu Poder"
+            "CST IPI Entradas", "CST IPI Saídas", "Conta Contábil", "Código de Barras"
         ];
 
         const skins = [
@@ -396,7 +396,7 @@
                 "CST IPI Entradas": ["codi_cst_ipi_entrada", "cst_ipi_entrada"],
                 "CST IPI Saídas": ["codi_cst_ipi_saida", "cst_ipi_saida"],
                 "Conta Contábil": ["conta_contabil"],
-                "Em seu Poder": ["em_seu_poder"]
+                "Codigo de Barras": ["codigo_de_barras"]
             };
 
             dominioFields.forEach(f => {
